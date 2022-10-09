@@ -1409,8 +1409,12 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
 		return ret;
 	}
 
-    private boolean isURIAccessAllowed(String userName, FsAction action, String uri, HiveConf conf) {
+	private boolean isURIAccessAllowed(String userName, FsAction action, String uri, HiveConf conf) {
+		return isURIAccessAllowed( userName,  action,  uri,  conf,  RangerHivePlugin.URIPermissionCoarseCheck);
+	}
+    private boolean isURIAccessAllowed(String userName, FsAction action, String uri, HiveConf conf, boolean coarseCheck) {
         boolean ret = false;
+		boolean recurse = !coarseCheck;
 
         if(action == FsAction.NONE) {
             ret = true;
@@ -1424,8 +1428,8 @@ public class RangerHiveAuthorizer extends RangerHiveAuthorizerBase {
                     boolean isDenied = false;
 
                     for(FileStatus file : filestat) {
-                        if (FileUtils.isOwnerOfFileHierarchy(fs, file, userName) ||
-							FileUtils.isActionPermittedForFileHierarchy(fs, file, userName, action)) {
+                        if (FileUtils.isOwnerOfFileHierarchy(fs, file, userName,recurse) ||
+							FileUtils.isActionPermittedForFileHierarchy(fs, file, userName, action,recurse)) {
 								continue;
 						} else {
 							isDenied = true;
@@ -2134,6 +2138,10 @@ class RangerHivePlugin extends RangerBasePlugin {
 	private static String RANGER_PLUGIN_HIVE_ULRAUTH_FILESYSTEM_SCHEMES = "ranger.plugin.hive.urlauth.filesystem.schemes";
 	private static String RANGER_PLUGIN_HIVE_ULRAUTH_FILESYSTEM_SCHEMES_DEFAULT = "hdfs:,file:";
 	private static String FILESYSTEM_SCHEMES_SEPARATOR_CHAR = ",";
+	private static String HIVE_URI_PERMISSION_COARSE_CHECK="xasecure.hive.uri.permission.coarse.check";
+	private static final boolean HIVE_URI_PERMISSION_COARSE_CHECK_DEFAULT_VALUE = false;
+	public static boolean URIPermissionCoarseCheck = HIVE_URI_PERMISSION_COARSE_CHECK_DEFAULT_VALUE;
+
 	private String[] fsScheme = null;
 
 	public RangerHivePlugin(String appType) {
@@ -2143,6 +2151,7 @@ class RangerHivePlugin extends RangerBasePlugin {
 	@Override
 	public void init() {
 		super.init();
+		RangerHivePlugin.URIPermissionCoarseCheck = RangerConfiguration.getInstance().getBoolean(HIVE_URI_PERMISSION_COARSE_CHECK, HIVE_URI_PERMISSION_COARSE_CHECK_DEFAULT_VALUE);
 
 		RangerHivePlugin.UpdateXaPoliciesOnGrantRevoke = RangerConfiguration.getInstance().getBoolean(RangerHadoopConstants.HIVE_UPDATE_RANGER_POLICIES_ON_GRANT_REVOKE_PROP, RangerHadoopConstants.HIVE_UPDATE_RANGER_POLICIES_ON_GRANT_REVOKE_DEFAULT_VALUE);
 		RangerHivePlugin.BlockUpdateIfRowfilterColumnMaskSpecified = RangerConfiguration.getInstance().getBoolean(RangerHadoopConstants.HIVE_BLOCK_UPDATE_IF_ROWFILTER_COLUMNMASK_SPECIFIED_PROP, RangerHadoopConstants.HIVE_BLOCK_UPDATE_IF_ROWFILTER_COLUMNMASK_SPECIFIED_DEFAULT_VALUE);
